@@ -1,6 +1,8 @@
 # Zorvyn Finance Backend API
 
-TypeScript + Express backend for user onboarding, invitation workflow, role-based access control, record management, and financial dashboard analytics.
+This is the backend I built for a finance operations assignment. The API covers user authentication, invite-based onboarding, role-based access, record management, and dashboard analytics.
+
+The goal was to keep the code clean, modular, and easy to test while still being practical for deployment.
 
 ![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
@@ -9,40 +11,25 @@ TypeScript + Express backend for user onboarding, invitation workflow, role-base
 
 ## 1. Project Overview
 
-### Purpose
+### What This API Does
 
-This API powers a finance operations backend with:
+This backend supports:
 
-- Authentication and secure session handling (JWT + HTTP-only cookies)
-- Invite-based account onboarding
+- User authentication with JWT + HTTP-only cookies
+- Invite flow for onboarding new users
 - Role-based authorization (`viewer`, `analyst`, `admin`)
-- Record CRUD and analytics dashboards
+- Record CRUD with soft delete
+- Dashboard reporting (summary, trends, category breakdown, recent activity)
 
-### Key Features
+### Why I Built It This Way
 
-- Cookie-first authentication with bearer token compatibility
-- Modular Express architecture (routes/controllers/services/validators)
-- Zod request validation
-- Mongoose models with indexing and soft delete for records
-- Dashboard aggregations: totals, trends, category breakdown, recent activity
+I wanted a structure that is straightforward for reviewers to navigate:
 
-### Technology Stack
-
-| Layer | Technology |
-| --- | --- |
-| Runtime | Node.js |
-| Language | TypeScript |
-| HTTP Framework | Express 5 |
-| Database | MongoDB + Mongoose |
-| Validation | Zod |
-| Auth | JWT (`jsonwebtoken`) + `cookie-parser` |
-| Security | `helmet`, `cors` |
-| Logging | `morgan` + custom logger |
-| Email | Nodemailer |
-
-### API Version
-
-- Current version: `v1` (unversioned paths under `/api/*`)
+- routes for URL mapping
+- controllers for request/response handling
+- services for business logic
+- validators for schema checks
+- middleware for auth, roles, and errors
 
 ## 2. Table of Contents
 
@@ -51,12 +38,14 @@ This API powers a finance operations backend with:
 - [3. Getting Started](#3-getting-started)
 - [4. Environment Configuration](#4-environment-configuration)
 - [5. Database Setup](#5-database-setup)
-- [6. Running the Application](#6-running-the-application)
-- [7. API Endpoints Documentation](#7-api-endpoints-documentation)
+- [6. Run Commands](#6-run-commands)
+- [7. API Endpoints](#7-api-endpoints)
 - [8. Authentication and Authorization](#8-authentication-and-authorization)
 - [9. Error Handling](#9-error-handling)
-- [10. Data Models and Schemas](#10-data-models-and-schemas)
+- [10. Data Models](#10-data-models)
 - [11. Deployment](#11-deployment)
+- [12. Technical Decisions and Trade-offs](#12-technical-decisions-and-trade-offs)
+- [13. Additional Notes](#13-additional-notes)
 
 ## 3. Getting Started
 
@@ -66,14 +55,14 @@ This API powers a finance operations backend with:
 | --- | --- |
 | Node.js | 22+ recommended |
 | npm | 10+ recommended |
-| MongoDB | 6+ or MongoDB Atlas |
+| MongoDB | Local instance or Atlas |
 
-### Installation Steps
+### Installation
 
-1. Clone repository
+1. Clone the repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/maruthishalivahana/zorvyn_assignment
 cd zorvyn_assignment
 ```
 
@@ -83,7 +72,7 @@ cd zorvyn_assignment
 npm install
 ```
 
-3. Create environment file
+3. Create your env file
 
 ```bash
 cp .env.example .env
@@ -95,7 +84,7 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-4. Set required values in `.env` (especially `MONGODB_URI` and `JWT_SECRET`)
+4. Fill in required values in `.env` (`MONGODB_URI`, `JWT_SECRET`, and mail config)
 
 ## 4. Environment Configuration
 
@@ -110,6 +99,7 @@ JWT_EXPIRES_IN=1d
 EMAIL_FROM=your_email@example.com
 EMAIL_FROM_NAME=Finance Dashboard
 API_BASE_URL=http://localhost:5000
+BREVO_API_KEY=
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -128,44 +118,45 @@ AUTH_COOKIE_MAX_AGE_MS=86400000
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `PORT` | No | `5000` | Server port |
-| `NODE_ENV` | No | `development` | App environment |
+| `NODE_ENV` | No | `development` | Runtime environment |
 | `MONGODB_URI` | Yes | `mongodb://localhost:27017/zorvyn` | MongoDB connection string |
 | `JWT_SECRET` | Yes | `""` | JWT signing secret |
-| `JWT_EXPIRES_IN` | No | `1d` | JWT expiry passed to `jsonwebtoken` |
+| `JWT_EXPIRES_IN` | No | `1d` | JWT expiration |
 | `EMAIL_FROM` | No | `noreply@example.com` | Sender email |
 | `EMAIL_FROM_NAME` | No | `Zorvyn` | Sender display name |
-| `API_BASE_URL` | No | `http://localhost:5000` | Base URL used in invite email content |
-| `SMTP_HOST` | No | `""` | SMTP host for sending invite emails |
+| `API_BASE_URL` | No | `http://localhost:5000` | Used in invite message content |
+| `BREVO_API_KEY` | No | `""` | If set, email is sent using Brevo API |
+| `SMTP_HOST` | No | `""` | SMTP host |
 | `SMTP_PORT` | No | `587` | SMTP port |
-| `SMTP_SECURE` | No | `false` | Use TLS for SMTP |
-| `SMTP_SERVICE` | No | `""` | Optional provider shortcut, e.g. `gmail` |
+| `SMTP_SECURE` | No | `false` | SMTP TLS mode |
+| `SMTP_SERVICE` | No | `""` | Optional SMTP service (example: `gmail`) |
 | `SMTP_USER` | No | `""` | SMTP username |
-| `SMTP_PASS` | No | `""` | SMTP password |
-| `AUTH_COOKIE_NAME` | No | `auth_token` | Auth cookie key |
-| `AUTH_COOKIE_SECURE` | No | `NODE_ENV === production` | Cookie `secure` flag |
-| `AUTH_COOKIE_SAME_SITE` | No | `lax` | Cookie `sameSite` (`lax`, `strict`, `none`) |
-| `AUTH_COOKIE_DOMAIN` | No | `""` | Cookie domain scope |
-| `AUTH_COOKIE_MAX_AGE_MS` | No | `86400000` | Auth cookie TTL in milliseconds |
+| `SMTP_PASS` | No | `""` | SMTP password/app key |
+| `AUTH_COOKIE_NAME` | No | `auth_token` | Auth cookie name |
+| `AUTH_COOKIE_SECURE` | No | `NODE_ENV === production` | Cookie secure flag |
+| `AUTH_COOKIE_SAME_SITE` | No | `lax` | Cookie sameSite setting |
+| `AUTH_COOKIE_DOMAIN` | No | `""` | Cookie domain |
+| `AUTH_COOKIE_MAX_AGE_MS` | No | `86400000` | Cookie TTL |
 
 ## 5. Database Setup
 
-### Database Type
+### Database
 
-- MongoDB via Mongoose
+- MongoDB (via Mongoose)
 
-### Initial Setup
+### Steps
 
-1. Ensure MongoDB is running (local or Atlas)
+1. Make sure MongoDB is running (local or Atlas)
 2. Set `MONGODB_URI` in `.env`
-3. Start the app; DB connection is established automatically on boot
+3. Start the app; DB connection happens during boot
 
-### Migrations and Seed Data
+### Migrations / Seed
 
-- This project does not currently use migration tooling
-- No formal seed command is defined
-- Create initial users via `POST /api/auth/register` or invite workflow
+- No migration tool added yet
+- No dedicated seed script yet
+- You can create users via `POST /api/auth/register` or invite flow
 
-## 6. Running the Application
+## 6. Run Commands
 
 ### Development
 
@@ -173,7 +164,7 @@ AUTH_COOKIE_MAX_AGE_MS=86400000
 npm run dev
 ```
 
-### Production
+### Build and Run
 
 ```bash
 npm run build
@@ -189,220 +180,174 @@ npm test
 ### Health Check
 
 - Endpoint: `GET /health`
-- Expected response:
+
+Expected response:
 
 ```json
 {
-   "success": true,
-   "message": "API is healthy"
+  "success": true,
+  "message": "API is healthy"
 }
 ```
 
-## 7. API Endpoints Documentation
+## 7. API Endpoints
 
-Base path for API routes: `/api`
+Base path: `/api`
 
-### 7.1 Auth Endpoints
+### 7.1 Auth
 
 #### `POST /api/auth/register`
 
-- Description: Register a new user
-- Auth required: No
-- Request body:
+Register a user.
+
+Sample body:
 
 ```json
 {
-   "name": "Admin User",
-   "email": "admin@example.com",
-   "password": "SecurePass123",
-   "role": "admin"
+  "name": "Admin User",
+  "email": "admin@example.com",
+  "password": "SecurePass123",
+  "role": "admin"
 }
 ```
-
-- Validation:
-   - `name`: 2-100 chars
-   - `email`: valid email
-   - `password`: min 8 chars, uppercase + lowercase + number
-   - `role`: optional, one of `viewer|analyst|admin`
 
 #### `POST /api/auth/login`
 
-- Description: Authenticate user and set auth cookie
-- Auth required: No
-- Request body:
+Login and get authenticated (cookie + token support).
+
+Sample body:
 
 ```json
 {
-   "email": "admin@example.com",
-   "password": "SecurePass123"
+  "email": "admin@example.com",
+  "password": "SecurePass123"
 }
 ```
 
-- Success notes:
-   - Sets HTTP-only auth cookie
-   - Returns basic user profile in response body
-
 #### `POST /api/auth/logout`
 
-- Description: Clears auth cookie
-- Auth required: Yes
+Logout current authenticated user.
 
-### 7.2 Invite Endpoints
+### 7.2 Invites
 
 #### `POST /api/invites`
 
-- Description: Send invite to new user
-- Auth required: Yes (`admin`)
-- Request body:
+Send invite (admin only).
 
 ```json
 {
-   "email": "analyst@example.com",
-   "role": "analyst",
-   "customMessage": "Welcome to the finance team"
+  "email": "analyst@example.com",
+  "role": "analyst",
+  "customMessage": "Welcome to the finance team"
 }
 ```
 
 #### `GET /api/invites/validate/:token`
 
-- Description: Validate invite token before acceptance
-- Auth required: No
+Validate invite token.
 
 #### `POST /api/invites/accept`
 
-- Description: Accept invite and create account
-- Auth required: No
-- Request body:
+Accept invite and create account.
 
 ```json
 {
-   "token": "invite-token",
-   "name": "Sarah Analyst",
-   "password": "SecurePass123"
+  "token": "invite-token",
+  "name": "Sarah Analyst",
+  "password": "SecurePass123"
 }
 ```
 
-### 7.3 User Endpoints
+### 7.3 Users
 
 #### `GET /api/users`
 
-- Description: List users with pagination/filter
-- Auth required: Yes (`admin`)
-- Query:
-   - `page` (default `1`)
-   - `limit` (default `20`, max `100`)
-   - `role` (`viewer|analyst|admin`)
-   - `status` (`active|inactive`)
+List users (admin only). Supports `page`, `limit`, `role`, `status`.
 
 #### `GET /api/users/me`
 
-- Description: Current user profile
-- Auth required: Yes (any role)
+Get current user profile.
 
 #### `GET /api/users/:id`
 
-- Description: Get user by ID
-- Auth required: Yes (`admin`)
+Get user by id (admin only).
 
 #### `PATCH /api/users/:id/status`
 
-- Description: Activate/deactivate user
-- Auth required: Yes (`admin`)
-- Request body:
+Update account status (admin only).
 
 ```json
 {
-   "status": "inactive"
+  "status": "inactive"
 }
 ```
 
 #### `DELETE /api/users/:id`
 
-- Description: Delete user
-- Auth required: Yes (`admin`)
+Delete user (admin only).
 
-### 7.4 Record Endpoints
+### 7.4 Records
 
 #### `POST /api/records`
 
-- Description: Create financial record
-- Auth required: Yes (`admin`)
-- Request body:
+Create record (admin only).
 
 ```json
 {
-   "title": "Team Lunch",
-   "type": "expense",
-   "category": "food",
-   "amount": 120.5,
-   "description": "Monthly team lunch",
-   "date": "2026-04-02T10:00:00.000Z"
+  "title": "Team Lunch",
+  "type": "expense",
+  "category": "food",
+  "amount": 120.5,
+  "description": "Monthly team lunch",
+  "date": "2026-04-02T10:00:00.000Z"
 }
 ```
 
 #### `GET /api/records`
 
-- Description: List records
-- Auth required: Yes (`analyst|admin`)
-- Query:
-   - `page`, `limit`
-   - `type` (`income|expense`)
-   - `category`
-   - `startDate`, `endDate`
+List records (analyst/admin).
 
 #### `GET /api/records/summary`
 
-- Description: Aggregate record summary
-- Auth required: Yes (`analyst|admin`)
+Summary for records (analyst/admin).
 
 #### `GET /api/records/:id`
 
-- Description: Get record by ID
-- Auth required: Yes (`analyst|admin`)
+Get one record (analyst/admin).
 
 #### `PATCH /api/records/:id`
 
-- Description: Update record fields
-- Auth required: Yes (`admin`)
+Update record (admin only).
 
 #### `DELETE /api/records/:id`
 
-- Description: Soft-delete record
-- Auth required: Yes (`admin`)
+Soft delete record (admin only).
 
-### 7.5 Dashboard Endpoints
+### 7.5 Dashboard
 
-All dashboard routes are read-only and available to all active roles (`viewer|analyst|admin`).
+Dashboard endpoints are read-only for all active roles.
 
 #### `GET /api/dashboard`
 
-- Alias of summary endpoint
+Alias for dashboard summary.
 
 #### `GET /api/dashboard/summary`
 
-- Description: Global totals (`totalIncome`, `totalExpenses`, `netBalance`, averages)
-- Query (optional): `startDate`, `endDate`
-- Behavior:
-   - If no date range is provided, summary is calculated over all records
+Overall totals and averages.
 
 #### `GET /api/dashboard/category-breakdown`
 
-- Query:
-   - `type` (`income|expense|all`, default `all`)
-   - `startDate`, `endDate` (optional)
+Query: `type`, `startDate`, `endDate`
 
 #### `GET /api/dashboard/trends`
 
-- Query:
-   - `period` (`monthly|weekly`, default `monthly`)
-   - `months` (`1-12`, default `6`)
+Query: `period`, `months`
 
 #### `GET /api/dashboard/recent-activity`
 
-- Query:
-   - `limit` (`1-50`, default `10`)
+Query: `limit`
 
-### 7.6 Endpoint Summary Table
+### 7.6 Endpoint Access Matrix
 
 | Method | Path | Access |
 | --- | --- | --- |
@@ -432,39 +377,33 @@ All dashboard routes are read-only and available to all active roles (`viewer|an
 
 ## 8. Authentication and Authorization
 
-### Authentication Mechanism
+### Authentication
 
 - JWT tokens signed with `JWT_SECRET`
-- Login sets JWT as HTTP-only cookie (`AUTH_COOKIE_NAME`)
-- Protected middleware accepts:
-   - Cookie token (preferred)
-   - `Authorization: Bearer <token>` (backward compatibility)
-
-### Token Expiration
-
-- Controlled by `JWT_EXPIRES_IN` (default `1d`)
+- Login sets HTTP-only cookie (`AUTH_COOKIE_NAME`)
+- Protected routes accept cookie token and Bearer token
 
 ### Roles
 
-- `viewer`: Dashboard read-only access
-- `analyst`: Dashboard read-only + records read access
-- `admin`: Full access
+- `viewer`: dashboard read-only
+- `analyst`: dashboard + records read
+- `admin`: full access
 
-### Account Status Check
+### Account Status Rule
 
-- Inactive users are blocked with `403 Account is inactive`
+Inactive users are blocked with `403 Account is inactive`.
 
 ## 9. Error Handling
 
-### Standard Response Shapes
+### Response Format
 
 Success:
 
 ```json
 {
-   "success": true,
-   "message": "Operation successful",
-   "data": {}
+  "success": true,
+  "message": "Operation successful",
+  "data": {}
 }
 ```
 
@@ -472,8 +411,8 @@ Error:
 
 ```json
 {
-   "success": false,
-   "message": "Error description"
+  "success": false,
+  "message": "Error description"
 }
 ```
 
@@ -481,65 +420,58 @@ Validation error:
 
 ```json
 {
-   "success": false,
-   "message": "Validation failed",
-   "errors": [
-      {
-         "path": "email",
-         "message": "Please provide a valid email"
-      }
-   ]
+  "success": false,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "path": "email",
+      "message": "Please provide a valid email"
+    }
+  ]
 }
 ```
 
-### Common HTTP Status Codes
+### Common Status Codes
 
 | Code | Meaning |
 | --- | --- |
 | `200` | OK |
 | `201` | Created |
-| `400` | Bad request / validation error |
-| `401` | Unauthorized / invalid token |
-| `403` | Forbidden / inactive account |
-| `404` | Resource or route not found |
-| `409` | Conflict (already exists / pending invite) |
+| `400` | Validation / bad request |
+| `401` | Unauthorized |
+| `403` | Forbidden / inactive user |
+| `404` | Not found |
+| `409` | Conflict |
 | `500` | Internal server error |
 
-## 10. Data Models and Schemas
+## 10. Data Models
 
 ### User
 
 ```json
 {
-   "id": "userObjectId",
-   "email": "user@example.com",
-   "name": "User Name",
-   "role": "viewer",
-   "status": "active",
-   "lastLoginAt": null,
-   "createdAt": "2026-04-04T09:00:00.000Z"
+  "id": "userObjectId",
+  "email": "user@example.com",
+  "name": "User Name",
+  "role": "viewer",
+  "status": "active",
+  "lastLoginAt": null,
+  "createdAt": "2026-04-04T09:00:00.000Z"
 }
 ```
-
-Constraints:
-
-- Email unique, normalized lowercase
-- Password min 8 chars (hashed by pre-save hook)
-- Role: `viewer|analyst|admin`
-- Status: `active|inactive`
 
 ### Invite
 
 ```json
 {
-   "email": "invitee@example.com",
-   "token": "uuid-token",
-   "role": "analyst",
-   "status": "pending",
-   "invitedBy": "adminObjectId",
-   "expiresAt": "2026-04-11T09:00:00.000Z",
-   "acceptedAt": null,
-   "customMessage": "Welcome"
+  "email": "invitee@example.com",
+  "token": "uuid-token",
+  "role": "analyst",
+  "status": "pending",
+  "invitedBy": "adminObjectId",
+  "expiresAt": "2026-04-11T09:00:00.000Z",
+  "acceptedAt": null,
+  "customMessage": "Welcome"
 }
 ```
 
@@ -547,89 +479,105 @@ Constraints:
 
 ```json
 {
-   "_id": "recordObjectId",
-   "title": "Team Lunch",
-   "type": "expense",
-   "category": "food",
-   "amount": 120.5,
-   "date": "2026-04-02T10:00:00.000Z",
-   "description": "Monthly team lunch",
-   "userId": "userObjectId",
-   "isDeleted": false,
-   "deletedAt": null,
-   "deletedBy": null
+  "_id": "recordObjectId",
+  "title": "Team Lunch",
+  "type": "expense",
+  "category": "food",
+  "amount": 120.5,
+  "date": "2026-04-02T10:00:00.000Z",
+  "description": "Monthly team lunch",
+  "userId": "userObjectId",
+  "isDeleted": false,
+  "deletedAt": null,
+  "deletedBy": null
 }
 ```
 
-Constraints:
-
-- `title`: 1-100 chars
-- `type`: `income|expense`
-- `category`: 2-50 chars, normalized lowercase
-- `amount`: positive with max 2 decimals
-- `description`: max 500 chars
-- Soft-delete enabled (`isDeleted`)
-
-### Dashboard Summary Data Shape
+### Dashboard Summary Shape
 
 ```json
 {
-   "summary": {
-      "totalIncome": 5400,
-      "totalExpenses": 1300,
-      "netBalance": 4100,
-      "transactionCount": {
-         "income": 3,
-         "expense": 5
-      },
-      "averageTransaction": {
-         "income": 1800,
-         "expense": 260
-      }
-   },
-   "period": {
-      "startDate": "all",
-      "endDate": "all"
-   }
+  "summary": {
+    "totalIncome": 5400,
+    "totalExpenses": 1300,
+    "netBalance": 4100,
+    "transactionCount": {
+      "income": 3,
+      "expense": 5
+    },
+    "averageTransaction": {
+      "income": 1800,
+      "expense": 260
+    }
+  },
+  "period": {
+    "startDate": "all",
+    "endDate": "all"
+  }
 }
 ```
 
 ## 11. Deployment
 
-### Deployed API Base URL
+### Live API
 
-- Not specified in this repository
-- Use environment-based base URL:
+- `https://zorvyn-assignment-w267.onrender.com`
 
-```text
-API_BASE_URL=https://zorvyn-assignment-w267.onrender.com
-```
+### Render Notes
 
-For production, set `API_BASE_URL` to your deployed domain and ensure:
-
-- `NODE_ENV=production`
-- `AUTH_COOKIE_SECURE=true`
-- Proper CORS origin policy configuration
-
-### Render / Production Environment Variables
-
-If you deploy on Render and use Gmail for invite emails, set:
+Set the following environment values in Render:
 
 ```env
 NODE_ENV=production
-API_BASE_URL=https://your-deployed-api-url
+API_BASE_URL=https://zorvyn-assignment-w267.onrender.com
 AUTH_COOKIE_SECURE=true
-SMTP_SERVICE=gmail
-SMTP_USER=your_gmail_address
-SMTP_PASS=your_google_app_password
-EMAIL_FROM=your_gmail_address
+MONGODB_URI=your_mongodb_atlas_uri
+JWT_SECRET=your_jwt_secret
+EMAIL_FROM=your_verified_sender@example.com
 EMAIL_FROM_NAME=Finance Dashboard
-MONGODB_URI=your_mongodb_atlas_connection_string
-JWT_SECRET=your_secure_jwt_secret
+BREVO_API_KEY=your_brevo_api_key
 ```
 
-Notes:
+If you are using SMTP instead of Brevo API, set SMTP variables and make sure your hosting provider allows outbound SMTP.
 
-- Use a Google App Password, not your normal Gmail password.
-- `SMTP_SERVICE=gmail` is enough for Nodemailer; `SMTP_HOST` and `SMTP_PORT` are optional when using the service shortcut.
-- Make sure your Render service build command runs `npm run build` before `npm start`.
+## 12. Technical Decisions and Trade-offs
+
+### Express + TypeScript
+
+I chose Express + TypeScript because it gives me control over request flow without forcing a heavy framework. TypeScript helped catch mistakes early, but the trade-off is more setup and stricter build checks.
+
+### MongoDB + Mongoose
+
+MongoDB was a practical fit for this assignment because invites, users, and records map nicely to document models. Mongoose gave me schema validation and hooks, but the trade-off is less strict relational integrity compared to SQL.
+
+### JWT with Cookie + Bearer Support
+
+I implemented JWT authentication with HTTP-only cookies for browser safety, and Bearer token support for Postman/testing convenience. This keeps usage flexible, but token lifecycle handling is still simpler than a full session store.
+
+### Layered Architecture
+
+I separated routes, controllers, services, middleware, models, and validators so the code is easier to maintain and test. It adds a little boilerplate, but it scales better than mixing everything in route files.
+
+### Invite Workflow
+
+I used invite token persistence in database with status tracking (`pending`, `accepted`, `expired`) so onboarding is traceable. This is robust, but it introduces dependency on mail provider/network health.
+
+## 13. Additional Notes
+
+### Known Limitations
+
+- No migration framework yet
+- No queue/retry system for email jobs
+- Logging is basic (console + morgan)
+
+### Setup and Runtime Notes
+
+- Keep all secrets in environment variables
+- Ensure CORS and cookie security are aligned with frontend origin in production
+- Verify sender/domain in your mail provider for reliable delivery
+
+### What I Would Improve Next
+
+- Add background job queue for emails
+- Add stronger observability (structured logs, alerting)
+- Expand automated tests around role-access and invite edge cases
