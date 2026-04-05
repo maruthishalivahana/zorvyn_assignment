@@ -2,6 +2,7 @@ import { Schema, model, type Document, type Types, type Query } from "mongoose";
 import constants from "../config/constants";
 
 export interface IRecord extends Document {
+    title: string;
     amount: number;
     type: (typeof constants.RECORD_TYPES)[keyof typeof constants.RECORD_TYPES];
     category: string;
@@ -17,6 +18,14 @@ export interface IRecord extends Document {
 
 const recordSchema = new Schema<IRecord>(
     {
+        title: {
+            type: String,
+            required: [true, "title is required"],
+            trim: true,
+            minlength: [1, "title is required"],
+            maxlength: [100, "title cannot exceed 100 characters"],
+            index: true
+        },
         amount: {
             type: Number,
             required: [true, "Amount is required"],
@@ -31,7 +40,8 @@ const recordSchema = new Schema<IRecord>(
         type: {
             type: String,
             required: [true, "Type is required"],
-            enum: Object.values(constants.RECORD_TYPES)
+            enum: Object.values(constants.RECORD_TYPES),
+            index: true
         },
         category: {
             type: String,
@@ -39,7 +49,8 @@ const recordSchema = new Schema<IRecord>(
             lowercase: true,
             trim: true,
             minlength: [2, "Category must be at least 2 characters"],
-            maxlength: [50, "Category cannot exceed 50 characters"]
+            maxlength: [50, "Category cannot exceed 50 characters"],
+            index: true
         },
         date: {
             type: Date,
@@ -83,6 +94,7 @@ recordSchema.index({ userId: 1, isDeleted: 1, date: -1 });
 recordSchema.index({ isDeleted: 1, date: -1 });
 recordSchema.index({ type: 1, isDeleted: 1 });
 recordSchema.index({ category: 1, isDeleted: 1 });
+recordSchema.index({ title: 1, isDeleted: 1 });
 
 recordSchema.pre(/^find/, function (this: Query<unknown, IRecord>, next: (err?: Error) => void) {
     const query = this.getQuery() as { isDeleted?: boolean };

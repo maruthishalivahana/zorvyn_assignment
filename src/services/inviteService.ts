@@ -25,6 +25,17 @@ interface ValidateInviteResult {
     reason?: string;
 }
 
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const findUserByEmail = async (email: string): Promise<IUser | null> =>
+    User.findOne({
+        email: {
+            $regex: `^${escapeRegex(email)}$`,
+            $options: "i"
+        }
+    });
+
 const generateToken = (): string => crypto.randomUUID();
 
 const ensureInviteIsPendingAndActive = async (invite: IInvite): Promise<void> => {
@@ -52,13 +63,15 @@ const generateAuthToken = (user: IUser): string => {
 };
 
 export const createInvite = async (payload: CreateInvitePayload): Promise<IInvite> => {
-    const existingUser = await User.findOne({ email: payload.email });
+    const normalizedEmail = normalizeEmail(payload.email);
+
+    const existingUser = await findUserByEmail(normalizedEmail);
     if (existingUser) {
         throw new Error("User already exists");
     }
 
     const pendingInvite = await Invite.findOne({
-        email: payload.email,
+        email: normalizedEmail,
         status: constants.INVITE_STATUS.PENDING,
         expiresAt: { $gt: new Date() }
     });
@@ -71,7 +84,7 @@ export const createInvite = async (payload: CreateInvitePayload): Promise<IInvit
     expiresAt.setDate(expiresAt.getDate() + constants.INVITE_EXPIRY_DAYS);
 
     const invite = await Invite.create({
-        email: payload.email,
+        email: normalizedEmail,
         token: generateToken(),
         role: payload.role,
         status: constants.INVITE_STATUS.PENDING,
@@ -128,7 +141,7 @@ export const acceptInvite = async (
 
     await ensureInviteIsPendingAndActive(invite);
 
-    const existingUser = await User.findOne({ email: invite.email });
+    const existingUser = await findUserByEmail(invite.email);
     if (existingUser) {
         throw new Error("User already exists");
     }

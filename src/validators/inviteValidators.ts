@@ -1,65 +1,27 @@
-import constants from "../config/constants";
-import { type Validator } from "../middleware/validationMiddleware";
+import { z } from "zod";
 
-const validRoles = new Set(Object.values(constants.ROLES));
+export const createInviteBodySchema = z.object({
+    email: z.string().trim().email("Please provide a valid email"),
+    role: z.enum(["viewer", "analyst", "admin"]),
+    customMessage: z.string().trim().max(500, "customMessage must be at most 500 characters").optional()
+});
 
-const requireField = (field: string): Validator => (req) => {
-    const value = req.body?.[field];
-    if (value === undefined || value === null || value === "") {
-        return `${field} is required`;
-    }
-    return null;
-};
+export const validateInviteTokenParamsSchema = z.object({
+    token: z.string().min(1, "token param is required")
+});
 
-export const createInviteValidators: Validator[] = [
-    requireField("email"),
-    requireField("role"),
-    (req) => {
-        const email = String(req.body?.email || "");
-        return /^\S+@\S+\.\S+$/.test(email) ? null : "email must be valid";
-    },
-    (req) => {
-        const role = String(req.body?.role || "");
-        return validRoles.has(role as (typeof constants.ROLES)[keyof typeof constants.ROLES])
-            ? null
-            : "role is invalid";
-    },
-    (req) => {
-        const message = req.body?.customMessage;
-        if (message && String(message).length > 500) {
-            return "customMessage must be at most 500 characters";
-        }
-        return null;
-    }
-];
-
-export const validateInviteTokenParamValidator: Validator = (req) => {
-    const token = req.params?.token;
-    if (!token) {
-        return "token param is required";
-    }
-    return null;
-};
-
-export const acceptInviteValidators: Validator[] = [
-    requireField("token"),
-    (req) => {
-        const name = req.body?.name ?? req.body?.fullName;
-        if (!name) {
-            return "name is required";
-        }
-        return String(name).trim().length >= 2 ? null : "name must be at least 2 characters";
-    },
-    requireField("password"),
-    (req) => {
-        const password = String(req.body?.password || "");
-        if (password.length < 8) {
-            return "password must be at least 8 characters";
-        }
-
-        const strongPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
-        return strongPattern.test(password)
-            ? null
-            : "password must include uppercase, lowercase and number";
-    }
-];
+export const acceptInviteBodySchema = z
+    .object({
+        token: z.string().min(1, "token is required"),
+        name: z.string().trim().min(2, "name must be at least 2 characters").optional(),
+        fullName: z.string().trim().min(2, "name must be at least 2 characters").optional(),
+        password: z
+            .string()
+            .min(8, "password must be at least 8 characters")
+            .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, "password must include uppercase, lowercase and number")
+    })
+    .transform((value) => ({
+        token: value.token,
+        name: value.name ?? value.fullName ?? "",
+        password: value.password
+    }));

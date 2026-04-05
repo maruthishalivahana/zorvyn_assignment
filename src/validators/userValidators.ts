@@ -1,22 +1,19 @@
-import { type Validator } from "../middleware/validationMiddleware";
-import constants from "../config/constants";
+import { z } from "zod";
 
-export const userIdParamValidator: Validator = (req) => {
-    if (!req.params.id) {
-        return "id param is required";
-    }
-    return null;
-};
+const userStatuses = ["active", "inactive"] as const;
+const userRoles = ["viewer", "analyst", "admin"] as const;
 
-export const statusUpdateValidators: Validator[] = [
-    (req) => {
-        const status = req.body?.status;
-        if (!status) {
-            return "status is required";
-        }
+export const userIdParamsSchema = z.object({
+    id: z.string().min(1, "id param is required")
+});
 
-        return Object.values(constants.USER_STATUS).includes(status)
-            ? null
-            : "status must be active or inactive";
-    }
-];
+export const userStatusBodySchema = z.object({
+    status: z.enum(userStatuses)
+});
+
+export const listUsersQuerySchema = z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    role: z.enum(userRoles).optional(),
+    status: z.enum(userStatuses).optional()
+});

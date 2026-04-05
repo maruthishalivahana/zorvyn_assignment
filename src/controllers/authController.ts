@@ -1,6 +1,9 @@
 import { type Request, type Response, type NextFunction } from "express";
 import { loginUser, registerUser } from "../services/authService";
 import { sendError, sendSuccess } from "../utils/responseHelper";
+import { type AuthRequest } from "../middleware/authMiddleware";
+import { env } from "../config/env";
+import { getAuthCookieClearOptions, getAuthCookieOptions } from "../utils/authCookie";
 
 const getAuthErrorStatus = (message: string): number => {
     if (message.includes("Invalid email or password")) {
@@ -37,10 +40,11 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const result = await loginUser(req.body);
+        res.cookie(env.authCookieName, result.token, getAuthCookieOptions());
+
         sendSuccess(
             res,
             {
-                token: result.token,
                 user: {
                     id: result.user._id,
                     email: result.user.email,
@@ -60,4 +64,17 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
         next(error);
     }
+};
+
+export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
+    res.clearCookie(env.authCookieName, getAuthCookieClearOptions());
+
+    sendSuccess(
+        res,
+        {
+            loggedOut: true,
+            userId: req.user?.id ?? null
+        },
+        "Logged out successfully"
+    );
 };

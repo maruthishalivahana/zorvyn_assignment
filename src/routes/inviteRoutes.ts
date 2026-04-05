@@ -6,18 +6,18 @@ import {
 } from "../controllers/inviteController";
 import { authenticate } from "../middleware/authMiddleware";
 import { authorize } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validationMiddleware";
+import { validateBody, validateParams } from "../middleware/validationMiddleware";
 import constants from "../config/constants";
 import {
-    acceptInviteValidators,
-    createInviteValidators,
-    validateInviteTokenParamValidator
+    acceptInviteBodySchema,
+    createInviteBodySchema,
+    validateInviteTokenParamsSchema
 } from "../validators/inviteValidators";
 
 const inviteRouter = Router();
 
-inviteRouter.post("/", authenticate, authorize(constants.ROLES.ADMIN), validate(createInviteValidators), sendInvite);
-inviteRouter.get("/validate/:token", validate([validateInviteTokenParamValidator]), validateInvite);
-inviteRouter.post("/accept", validate(acceptInviteValidators), acceptInviteAndCreateAccount);
+inviteRouter.post("/", authenticate, authorize(constants.ROLES.ADMIN), validateBody(createInviteBodySchema), sendInvite);
+inviteRouter.get("/validate/:token", validateParams(validateInviteTokenParamsSchema), validateInvite);
+inviteRouter.post("/accept", validateBody(acceptInviteBodySchema), acceptInviteAndCreateAccount);
 
 export default inviteRouter;

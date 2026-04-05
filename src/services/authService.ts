@@ -15,8 +15,21 @@ interface LoginPayload {
     password: string;
 }
 
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const findUserByEmail = async (email: string): Promise<IUser | null> =>
+    User.findOne({
+        email: {
+            $regex: `^${escapeRegex(email)}$`,
+            $options: "i"
+        }
+    });
+
 export const registerUser = async (payload: RegisterPayload): Promise<IUser> => {
-    const existingUser = await User.findOne({ email: payload.email });
+    const normalizedEmail = normalizeEmail(payload.email);
+
+    const existingUser = await findUserByEmail(normalizedEmail);
     if (existingUser) {
         throw new Error("User already exists");
     }
@@ -24,14 +37,16 @@ export const registerUser = async (payload: RegisterPayload): Promise<IUser> => 
     // Password hashing is handled by the User model pre-save hook.
     return User.create({
         name: payload.name,
-        email: payload.email,
+        email: normalizedEmail,
         password: payload.password,
         role: payload.role
     });
 };
 
 export const loginUser = async (payload: LoginPayload): Promise<{ token: string; user: IUser }> => {
-    const user = await User.findOne({ email: payload.email });
+    const normalizedEmail = normalizeEmail(payload.email);
+
+    const user = await findUserByEmail(normalizedEmail);
     if (!user) {
         throw new Error("Invalid email or password");
     }
