@@ -24,31 +24,33 @@ export const sendInviteEmail = async (
         return { sent: false };
     }
 
-    const transporter = nodemailer.createTransport(
-        env.smtpService
-            ? {
-                service: env.smtpService,
-                auth: {
-                    user: env.smtpUser,
-                    pass: env.smtpPass
-                },
-                connectionTimeout: 10000,
-                greetingTimeout: 10000,
-                socketTimeout: 10000
-            }
-            : {
-                host: env.smtpHost,
-                port: env.smtpPort,
-                secure: env.smtpSecure,
-                auth: {
-                    user: env.smtpUser,
-                    pass: env.smtpPass
-                },
-                connectionTimeout: 10000,
-                greetingTimeout: 10000,
-                socketTimeout: 10000
-            }
-    );
+    const transportOptions = env.smtpService
+        ? {
+            service: env.smtpService,
+            auth: {
+                user: env.smtpUser,
+                pass: env.smtpPass
+            },
+            family: 4,
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 10000
+        }
+        : {
+            host: env.smtpHost,
+            port: env.smtpPort,
+            secure: env.smtpSecure,
+            auth: {
+                user: env.smtpUser,
+                pass: env.smtpPass
+            },
+            family: 4,
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 10000
+        };
+
+    const transporter = nodemailer.createTransport(transportOptions as any);
 
     const fromAddress = `${env.emailFromName} <${env.emailFrom}>`;
 
