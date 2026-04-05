@@ -32,6 +32,7 @@ export const env = {
     smtpHost: process.env.SMTP_HOST || "",
     smtpPort: Number(process.env.SMTP_PORT) || 587,
     smtpSecure: process.env.SMTP_SECURE === "true",
+    smtpService: process.env.SMTP_SERVICE || "",
     smtpUser: process.env.SMTP_USER || "",
     smtpPass: process.env.SMTP_PASS || "",
     authCookieName: process.env.AUTH_COOKIE_NAME || "auth_token",

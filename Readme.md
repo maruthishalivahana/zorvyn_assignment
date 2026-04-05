@@ -113,6 +113,7 @@ API_BASE_URL=http://localhost:5000
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
+SMTP_SERVICE=
 SMTP_USER=your_email@example.com
 SMTP_PASS=your_smtp_app_password
 AUTH_COOKIE_NAME=auth_token
@@ -137,6 +138,7 @@ AUTH_COOKIE_MAX_AGE_MS=86400000
 | `SMTP_HOST` | No | `""` | SMTP host for sending invite emails |
 | `SMTP_PORT` | No | `587` | SMTP port |
 | `SMTP_SECURE` | No | `false` | Use TLS for SMTP |
+| `SMTP_SERVICE` | No | `""` | Optional provider shortcut, e.g. `gmail` |
 | `SMTP_USER` | No | `""` | SMTP username |
 | `SMTP_PASS` | No | `""` | SMTP password |
 | `AUTH_COOKIE_NAME` | No | `auth_token` | Auth cookie key |
@@ -600,7 +602,7 @@ Constraints:
 - Use environment-based base URL:
 
 ```text
-API_BASE_URL=http://localhost:5000
+API_BASE_URL=https://zorvyn-assignment-w267.onrender.com
 ```
 
 For production, set `API_BASE_URL` to your deployed domain and ensure:
@@ -608,3 +610,26 @@ For production, set `API_BASE_URL` to your deployed domain and ensure:
 - `NODE_ENV=production`
 - `AUTH_COOKIE_SECURE=true`
 - Proper CORS origin policy configuration
+
+### Render / Production Environment Variables
+
+If you deploy on Render and use Gmail for invite emails, set:
+
+```env
+NODE_ENV=production
+API_BASE_URL=https://your-deployed-api-url
+AUTH_COOKIE_SECURE=true
+SMTP_SERVICE=gmail
+SMTP_USER=your_gmail_address
+SMTP_PASS=your_google_app_password
+EMAIL_FROM=your_gmail_address
+EMAIL_FROM_NAME=Finance Dashboard
+MONGODB_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=your_secure_jwt_secret
+```
+
+Notes:
+
+- Use a Google App Password, not your normal Gmail password.
+- `SMTP_SERVICE=gmail` is enough for Nodemailer; `SMTP_HOST` and `SMTP_PORT` are optional when using the service shortcut.
+- Make sure your Render service build command runs `npm run build` before `npm start`.

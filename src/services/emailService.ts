@@ -13,20 +13,38 @@ interface InviteEmailPayload {
 export const sendInviteEmail = async (
     payload: InviteEmailPayload
 ): Promise<{ sent: boolean; providerId?: string }> => {
-    if (!env.smtpHost || !env.smtpUser || !env.smtpPass) {
-        logger.warn("SMTP is not fully configured. Invite email was skipped.");
+    if (!env.smtpUser || !env.smtpPass || (!env.smtpHost && !env.smtpService)) {
+        const message = "SMTP is not fully configured. Invite email was skipped.";
+
+        if (env.nodeEnv === "production") {
+            throw new Error(message);
+        }
+
+        logger.warn(message);
         return { sent: false };
     }
 
-    const transporter = nodemailer.createTransport({
-        host: env.smtpHost,
-        port: env.smtpPort,
-        secure: env.smtpSecure,
-        auth: {
-            user: env.smtpUser,
-            pass: env.smtpPass
-        }
-    });
+    const transporter = nodemailer.createTransport(
+        env.smtpService
+            ? {
+                service: env.smtpService,
+                auth: {
+                    user: env.smtpUser,
+                    pass: env.smtpPass
+                }
+            }
+            : {
+                host: env.smtpHost,
+                port: env.smtpPort,
+                secure: env.smtpSecure,
+                auth: {
+                    user: env.smtpUser,
+                    pass: env.smtpPass
+                }
+            }
+    );
+
+    await transporter.verify();
 
     const fromAddress = `${env.emailFromName} <${env.emailFrom}>`;
 
