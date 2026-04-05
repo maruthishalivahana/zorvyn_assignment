@@ -1,0 +1,997 @@
+{
+    "info": {
+        "name": "Zorvyn Invite + Records Flow",
+        "description": "Postman collection for invite onboarding flow and full records API testing.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "https://zorvyn-assignment-w267.onrender.com"
+        },
+        {
+            "key": "adminEmail",
+            "value": "admin@company.com"
+        },
+        {
+            "key": "adminPassword",
+            "value": "SecurePass123"
+        },
+        {
+            "key": "inviteEmail",
+            "value": "analyst@company.com"
+        },
+        {
+            "key": "invitePassword",
+            "value": "SecurePass123"
+        },
+        {
+            "key": "adminToken",
+            "value": ""
+        },
+        {
+            "key": "inviteToken",
+            "value": ""
+        },
+        {
+            "key": "invitedUserToken",
+            "value": ""
+        },
+        {
+            "key": "activeToken",
+            "value": ""
+        },
+        {
+            "key": "recordId",
+            "value": ""
+        },
+        {
+            "key": "managedUserId",
+            "value": ""
+        },
+        {
+            "key": "accountStatus",
+            "value": "inactive"
+        }
+    ],
+    "item": [
+        {
+            "name": "Health Check",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/health",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "health"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Auth - Register Admin (optional)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"role\": \"admin\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/auth/register",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "auth",
+                        "register"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Auth - Login Admin",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/auth/login",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "auth",
+                        "login"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const json = pm.response.json();",
+                            "const setCookie = pm.response.headers.get('Set-Cookie');",
+                            "if (setCookie) {",
+                            "  const cookiePair = setCookie.split(';')[0];",
+                            "  const separatorIndex = cookiePair.indexOf('=');",
+                            "  if (separatorIndex > -1) {",
+                            "    const token = cookiePair.slice(separatorIndex + 1);",
+                            "    pm.collectionVariables.set('adminToken', token);",
+                            "    pm.collectionVariables.set('activeToken', token);",
+                            "  }",
+                            "}",
+                            "if (json?.data?.token) {",
+                            "  pm.collectionVariables.set('adminToken', json.data.token);",
+                            "  pm.collectionVariables.set('activeToken', json.data.token);",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Invites - Send Invite",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{adminToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"role\": \"analyst\",\n  \"customMessage\": \"Join our finance team!\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/invites",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "invites"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const json = pm.response.json();",
+                            "if (json?.data?.token) {",
+                            "  pm.collectionVariables.set('inviteToken', json.data.token);",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Invites - Validate Token",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/api/invites/validate/{{inviteToken}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "invites",
+                        "validate",
+                        "{{inviteToken}}"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Invites - Accept Invite",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"token\": \"{{inviteToken}}\",\n  \"name\": \"Sarah Anderson\",\n  \"password\": \"{{invitePassword}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/invites/accept",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "invites",
+                        "accept"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const json = pm.response.json();",
+                            "if (json?.data?.token) {",
+                            "  pm.collectionVariables.set('invitedUserToken', json.data.token);",
+                            "  pm.collectionVariables.set('activeToken', json.data.token);",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Auth - Login Invited User",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"password\": \"{{invitePassword}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/auth/login",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "auth",
+                        "login"
+                    ]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "const json = pm.response.json();",
+                            "const setCookie = pm.response.headers.get('Set-Cookie');",
+                            "if (setCookie) {",
+                            "  const cookiePair = setCookie.split(';')[0];",
+                            "  const separatorIndex = cookiePair.indexOf('=');",
+                            "  if (separatorIndex > -1) {",
+                            "    const token = cookiePair.slice(separatorIndex + 1);",
+                            "    pm.collectionVariables.set('invitedUserToken', token);",
+                            "    pm.collectionVariables.set('activeToken', token);",
+                            "  }",
+                            "}",
+                            "if (json?.data?.token) {",
+                            "  pm.collectionVariables.set('invitedUserToken', json.data.token);",
+                            "  pm.collectionVariables.set('activeToken', json.data.token);",
+                            "}"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Auth - Logout Admin",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{adminToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/auth/logout",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "auth",
+                        "logout"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Auth - Logout Invited User",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{invitedUserToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/auth/logout",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "auth",
+                        "logout"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "User APIs",
+            "item": [
+                {
+                    "name": "Users - Me",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{activeToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "me"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Users - List (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users?page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const json = pm.response.json();",
+                                    "const users = json?.data?.users || json?.data?.data?.users || [];",
+                                    "const target = users.find((u) => u?.email === pm.collectionVariables.get('inviteEmail')) || users.find((u) => u?.role !== 'admin');",
+                                    "if (target?.id || target?._id) {",
+                                    "  pm.collectionVariables.set('managedUserId', target.id || target._id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Users - List Filtered (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users?page=1&limit=20&role=analyst&status=active",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                },
+                                {
+                                    "key": "role",
+                                    "value": "analyst"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "active"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Users - Get By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{managedUserId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{managedUserId}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Users - Update Account Status (Admin)",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"{{accountStatus}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{managedUserId}}/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{managedUserId}}",
+                                "status"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Users - Update Account Status (Analyst should fail 403)",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{invitedUserToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{managedUserId}}/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{managedUserId}}",
+                                "status"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Users - Delete (Admin)",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{managedUserId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{managedUserId}}"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Dashboard APIs",
+            "item": [
+                {
+                    "name": "Dashboard - Summary (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/dashboard/summary",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "summary"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Dashboard - Summary (Viewer Scope)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{invitedUserToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/dashboard/summary",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "summary"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Dashboard - Category Breakdown",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/dashboard/category-breakdown?type=all",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "category-breakdown"
+                            ],
+                            "query": [
+                                {
+                                    "key": "type",
+                                    "value": "all"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Dashboard - Trends (Monthly)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/dashboard/trends?period=monthly&months=6",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "trends"
+                            ],
+                            "query": [
+                                {
+                                    "key": "period",
+                                    "value": "monthly"
+                                },
+                                {
+                                    "key": "months",
+                                    "value": "6"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Dashboard - Recent Activity",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/dashboard/recent-activity?limit=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "recent-activity"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Records APIs",
+            "item": [
+                {
+                    "name": "Records - Create (Admin)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Team Lunch\",\n  \"type\": \"expense\",\n  \"category\": \"food\",\n  \"amount\": 120.5,\n  \"description\": \"Monthly team lunch\",\n  \"date\": \"2026-04-02T10:00:00.000Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records"
+                            ]
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const json = pm.response.json();",
+                                    "const id = json?.data?._id || json?.data?.id || json?.data?.record?._id;",
+                                    "if (id) {",
+                                    "  pm.collectionVariables.set('recordId', id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Records - List (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records?page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Records - List (Analyst)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{invitedUserToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records?page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Records - Filter by Type/Category/Date",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records?type=expense&category=food&startDate=2026-04-01T00:00:00.000Z&endDate=2026-04-30T23:59:59.000Z&page=1&limit=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records"
+                            ],
+                            "query": [
+                                {
+                                    "key": "type",
+                                    "value": "expense"
+                                },
+                                {
+                                    "key": "category",
+                                    "value": "food"
+                                },
+                                {
+                                    "key": "startDate",
+                                    "value": "2026-04-01T00:00:00.000Z"
+                                },
+                                {
+                                    "key": "endDate",
+                                    "value": "2026-04-30T23:59:59.000Z"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Records - Get By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records/{{recordId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records",
+                                "{{recordId}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Records - Update (Admin)",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Team Lunch Updated\",\n  \"amount\": 135.75,\n  \"description\": \"Updated by admin\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records/{{recordId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records",
+                                "{{recordId}}"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Records - Summary (Analyst)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{invitedUserToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records/summary?startDate=2026-04-01T00:00:00.000Z&endDate=2026-04-30T23:59:59.000Z",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records",
+                                "summary"
+                            ],
+                            "query": [
+                                {
+                                    "key": "startDate",
+                                    "value": "2026-04-01T00:00:00.000Z"
+                                },
+                                {
+                                    "key": "endDate",
+                                    "value": "2026-04-30T23:59:59.000Z"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Records - Delete (Admin)",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/records/{{recordId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "records",
+                                "{{recordId}}"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -29,6 +29,7 @@ export const env = {
     emailFrom: process.env.EMAIL_FROM || "noreply@example.com",
     emailFromName: process.env.EMAIL_FROM_NAME || "Zorvyn",
     apiBaseUrl: process.env.API_BASE_URL || "http://localhost:5000",
+    brevoApiKey: process.env.BREVO_API_KEY || "",
     smtpHost: process.env.SMTP_HOST || "",
     smtpPort: Number(process.env.SMTP_PORT) || 587,
     smtpSecure: process.env.SMTP_SECURE === "true",

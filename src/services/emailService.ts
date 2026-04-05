@@ -13,8 +13,8 @@ interface InviteEmailPayload {
 export const sendInviteEmail = async (
     payload: InviteEmailPayload
 ): Promise<{ sent: boolean; providerId?: string }> => {
-    if (!env.smtpUser || !env.smtpPass || (!env.smtpHost && !env.smtpService)) {
-        const message = "SMTP is not fully configured. Invite email was skipped.";
+    if (!env.brevoApiKey && (!env.smtpUser || !env.smtpPass || (!env.smtpHost && !env.smtpService))) {
+        const message = "Email service is not configured. Invite email was skipped.";
 
         if (env.nodeEnv === "production") {
             throw new Error(message);
@@ -24,6 +24,12 @@ export const sendInviteEmail = async (
         return { sent: false };
     }
 
+    // Use Brevo API if available (recommended for Render)
+    if (env.brevoApiKey) {
+        return sendViaBrevoAPI(payload);
+    }
+
+    // Fall back to SMTP for local development
     const transportOptions = env.smtpService
         ? {
             service: env.smtpService,
@@ -83,4 +89,64 @@ export const sendInviteEmail = async (
 
     logger.info(`Invite email sent: ${email.messageId ?? "unknown-id"}`);
     return { sent: true, providerId: email.messageId };
+};
+
+const sendViaBrevoAPI = async (
+    payload: InviteEmailPayload
+): Promise<{ sent: boolean; providerId?: string }> => {
+    const acceptanceHelp = [
+        "Use Postman to complete onboarding:",
+        "1) Validate invite token:",
+        `GET ${env.apiBaseUrl}/api/invites/validate/${payload.token}`,
+        "2) Accept invite:",
+        `POST ${env.apiBaseUrl}/api/invites/accept`,
+        `Body: { \"token\": \"${payload.token}\", \"name\": \"Your Name\", \"password\": \"StrongPass123\" }`
+    ].join("\n");
+
+    const brevoPayload = {
+        sender: {
+            name: env.emailFromName,
+            email: env.emailFrom
+        },
+        to: [
+            {
+                email: payload.email
+            }
+        ],
+        subject: "You have been invited to join Zorvyn",
+        htmlContent: `
+            <p>You have been invited to join Zorvyn as <strong>${payload.role}</strong>.</p>
+            ${payload.customMessage ? `<p>Message from admin: ${payload.customMessage}</p>` : ""}
+            <p>Your invite token:</p>
+            <pre>${payload.token}</pre>
+            <p>Expires at: ${payload.expiresAt.toISOString()}</p>
+            <p>Use Postman to complete onboarding.</p>
+        `,
+        textContent: `You have been invited to join Zorvyn as ${payload.role}.\n\n${payload.customMessage ? `Message from admin: ${payload.customMessage}\n\n` : ""}Token: ${payload.token}\nExpires at: ${payload.expiresAt.toISOString()}\n\n${acceptanceHelp}`
+    };
+
+    try {
+        const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                "accept": "application/json",
+                "api-key": env.brevoApiKey,
+                "content-type": "application/json"
+            },
+            body: JSON.stringify(brevoPayload)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(`Brevo API error: ${JSON.stringify(error)}`);
+        }
+
+        const result = (await response.json()) as { messageId: string };
+        logger.info(`Invite email sent via Brevo API: ${result.messageId}`);
+        return { sent: true, providerId: result.messageId };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to send email via Brevo API";
+        logger.error(message);
+        throw new Error(message);
+    }
 };
