@@ -1,4 +1,4 @@
-# Zorvyn Finance Backend API
+# Zorvyn Finance Backend
 
 This is the backend I built for a finance operations assignment. The API covers user authentication, invite-based onboarding, role-based access, record management, and dashboard analytics.
 
